@@ -1,13 +1,12 @@
 #!/bin/bash
-# Mon script de post installation serveur Debian 8 Jessie
+# Script d'installation et de configuration pour Debian
 #
 # Sources :
-# LXCONFIG Laurent Bisson
+# Très inspiré de LXCONFIG de Laurent Bisson
 # http://maclol.inetlab.fr/lxconfig-2/
 #
-# Ajusté par Antoine RENIER - 27/07/2016
 
-#v="5.1"					# Version
+#v="1"					# Version
 noyau=$(uname -sr)			# noyau linux
 today=$(date "+%d/%m/%Y")	# Date
 
@@ -19,12 +18,12 @@ cyanclair='\e[36m'
 rouge='\e[31m'
 
 # Verifie que les dossiers dans /opt sont présents
-if [ ! -d "/opt/lxconfig" ]
+if [ ! -d "/opt/linuxconfig" ]
 then
-	mkdir /opt/lxconfig
-	mkdir /opt/lxconfig/conf.bak
-	mkdir /opt/lxconfig/datas
-	mkdir /opt/lxconfig/tmp
+	mkdir /opt/linuxconfig
+	mkdir /opt/linuxconfig/conf.bak
+	mkdir /opt/linuxconfig/datas
+	mkdir /opt/linuxconfig/tmp
 fi
 
 ############################
@@ -111,13 +110,13 @@ function getNetworkDatas
 
 	# Récupère date de modification des fichiers
 	[ -e "$netFile" ] 				&& dateNetFile=$( stat -c%Z "$netFile" )
-	[ -e "/opt/lxconfig/netDatabank" ] && dateNetData=$( stat -c%Z "/opt/lxconfig/netDatabank" ) || dateNetData=0
+	[ -e "/opt/linuxconfig/netDatabank" ] && dateNetData=$( stat -c%Z "/opt/linuxconfig/netDatabank" ) || dateNetData=0
 
 	if [ "$dateNetFile" -gt "$dateNetData" ]
 	then
 		noInt=""
 		interFaces=$( ifconfig | egrep '^[^ ]' | awk '{print $1}' | sed '/lo/d' )
-		if [ -f "/opt/lxconfig/netDatabank" ];then rm /opt/lxconfig/netDatabank;fi
+		if [ -f "/opt/linuxconfig/netDatabank" ];then rm /opt/linuxconfig/netDatabank;fi
 		for interface in $interFaces
 		do
 			((noInt ++))
@@ -129,7 +128,7 @@ function getNetworkDatas
 				masque=$( echo ${int["$noInt"]} | cut -d":" -f10 | cut -d" " -f1)
 				intface=$( echo ${int["$noInt"]} | cut -d":" -f2 | cut -d" " -f1)
 				addrmac=$( echo ${int["$noInt"]} | cut -d" " -f5)
-				echo "$interface;$ip;$intface;$addrmac" >> /opt/lxconfig/netDatabank
+				echo "$interface;$ip;$intface;$addrmac" >> /opt/linuxconfig/netDatabank
 			fi
 		done
 	fi
@@ -167,9 +166,9 @@ function getDhcp
 		then
 		dhcpserver="OK"
 		couleurdhcp=${vertclair}
-			if [ ! -f "/opt/lxconfig/conf.bak/dhcpd.conf.bak" ]
+			if [ ! -f "/opt/linuxconfig/conf.bak/dhcpd.conf.bak" ]
 			then
-			cp /etc/dhcp/dhcpd.conf /opt/lxconfig/conf.bak/dhcpd.conf.bak
+			cp /etc/dhcp/dhcpd.conf /opt/linuxconfig/conf.bak/dhcpd.conf.bak
 			fi
 			service_dhcp=$( service isc-dhcp-server status )
 			if [ $? -eq 0 ]
@@ -195,9 +194,9 @@ function getSamba
 		then
 		sambaserver="OK"
 		couleursamba="${vertclair}"
-			if [ ! -f "/opt/lxconfig/conf.bak/smb.conf.bak" ]
+			if [ ! -f "/opt/linuxconfig/conf.bak/smb.conf.bak" ]
 			then
-			cp /etc/samba/smb.conf /opt/lxconfig/conf.bak/smb.conf.bak
+			cp /etc/samba/smb.conf /opt/linuxconfig/conf.bak/smb.conf.bak
 			fi
 			service_samba=$( /etc/init.d/samba status )
 			if [ $? -eq 0 ]
@@ -223,9 +222,9 @@ function getNfs
 		then
 		nfsserver="OK"
 		couleurnfs="${vertclair}"
-			if [ ! -f "/opt/lxconfig/conf.bak/exports.bak" ]
+			if [ ! -f "/opt/linuxconfig/conf.bak/exports.bak" ]
 			then
-			cp /etc/exports /opt/lxconfig/conf.bak/exports.bak
+			cp /etc/exports /opt/linuxconfig/conf.bak/exports.bak
 			fi
 			service_nfs=$( service nfs-kernel-server status > /dev/null )
 			if [ $? -eq 0 ]
@@ -275,9 +274,9 @@ function getFtp
 		then
 		ftpserver="OK"
 		couleurftp="${vertclair}"
-			if [ ! -f "/opt/lxconfig/conf.bak/proftpd.conf.bak" ]
+			if [ ! -f "/opt/linuxconfig/conf.bak/proftpd.conf.bak" ]
 			then
-			cp /etc/proftpd/proftpd.conf /opt/lxconfig/conf.bak/proftpd.conf.bak
+			cp /etc/proftpd/proftpd.conf /opt/linuxconfig/conf.bak/proftpd.conf.bak
 			fi
 			service_ftp=$( service proftpd status )
 			if [ $? -eq 0 ]
@@ -653,7 +652,7 @@ function entete
 		connect=$( echo $data_net | cut -d";" -f3 )
 		addrmac=$( echo $data_net | cut -d";" -f4 )
 	printf "${vertclair}%-5s${blanc}%-11s${vertclair}%-9s${blanc}%-6s${vertclair}%-16s${blanc}%-5s${vertclair}%-10s\n" "$int" "Interface:" "$connect" "Ipv4:" "$ip" "MAC:" "$addrmac"
-	done < /opt/lxconfig/netDatabank
+	done < /opt/linuxconfig/netDatabank
 	echo -e "${neutre}==============================================================================================="
 }
 
