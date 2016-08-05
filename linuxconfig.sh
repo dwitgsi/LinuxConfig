@@ -5,6 +5,7 @@
 # Très inspiré de LXCONFIG de Laurent Bisson
 # http://maclol.inetlab.fr/lxconfig-2/
 #
+# Adapté par et pour Antoine RENIER - 27/07/2016
 
 #v="1"					# Version
 noyau=$(uname -sr)			# noyau linux
@@ -529,20 +530,56 @@ function getStates
 # Configuration de cron-apt
 function cronaptConfig {
 	local FILE;
-	local MAIL;
 
 	# Fichier de conf
 	FILE="/etc/cron-apt/config"
 
-	grep security /etc/apt/sources.list > /etc/apt/security.sources.list
+	if ! [ -f /etc/cron-apt/action.d/5-install ]; then
+		grep security /etc/apt/sources.list > /etc/apt/security.sources.list
 
-	echo "Configuration de cron-apt..."
-	echo "APTCOMMAND=/usr/bin/apt-get" >> $FILE
-	echo "grep security /etc/apt/sources.list > /etc/apt/security.sources.list" >> $FILE
-	echo "MAILTO=\""$MAIL"\"" >> $FILE
-	echo "MAILON=\"upgrade\"" >> $FILE
-	# Ajout de l'installation automatique
-	echo "dist-upgrade -y -o APT::Get::Show-Upgraded=true" > /etc/cron-apt/action.d/5-install
+		echo "Configuration de cron-apt..."
+		echo "APTCOMMAND=/usr/bin/apt-get" >> $FILE
+		echo "grep security /etc/apt/sources.list > /etc/apt/security.sources.list" >> $FILE
+		echo "MAILTO=\""$MAIL"\"" >> $FILE
+		echo "MAILON=\"upgrade\"" >> $FILE
+		# Ajout de l'installation automatique
+		echo "dist-upgrade -y -o APT::Get::Show-Upgraded=true" > /etc/cron-apt/action.d/5-install
+	else
+		echo "Le paquet cron-apt est déjà configuré."
+	fi
+}
+
+# Configuration de base de Fail2ban
+function fail2banConfigBase {
+	if ! [ -f /etc/fail2ban/jail.conf.bkp ]; then
+		echo "Configuration de base de fail2ban..."
+		cp -a /etc/fail2ban/jail.conf /etc/fail2ban/jail.conf.bkp
+
+		# Envoi de mail
+		sed -i 's/destemail = root@localhost/destemail = '$MAIL'/g' /etc/fail2ban/jail.conf
+		sed -i 's/sender = fail2ban@localhost/sender = fail2ban@'$(hostname)'/g'
+		sed -i 's/action = %(action_)s/action = %(action_mw)s/g' /etc/fail2ban/jail.conf
+		# Sécurisation du SSH
+		LINENUMBER=$(grep -n 'ssh-ddos' /etc/fail2ban/jail.conf | awk -F':' '{ print $1 }')
+		LINENUMBER=$(($LINENUMBER+2))
+		sed -i ''$LINENUMBER' s/false/true/' /etc/fail2ban/jail.conf
+
+		service fail2ban restart
+	else
+		echo "Le paquet fail2ban est déjà configuré."
+	fi
+}
+
+# Confifuration de logwatch
+function logwatchConfig {
+	if ! [ -f /root/backups/00logwatch.bkp ]; then
+		echo "Configuration de logwatch..."
+		mkdir /root/backups
+		cp -a /etc/cron.daily/00logwatch /root/backups/00logwatch.bkp
+		sed -i 's/logwatch --output mail/logwatch --mailto '$MAIL' --detail high/g' /etc/cron.daily/00logwatch
+	else
+		echo "Le paquet logwatch est déjà configuré."
+	fi
 }
 
 # Configuration de Oh-My-Zsh
@@ -727,10 +764,13 @@ do
 
 					1 )
 						shift
-						checkPackages "cron-apt fail2ban logwatch lsb-release postfix"
+						checkPackages "cron-apt fail2ban logwatch lsb-release"
 						echo -n "Adresse mail pour les rapports de securite: "
 						read MAIL
-						cronaptConfig
+						cronaptConfig #Configuration de l'installation auto des MAJ de sécu
+						fail2banConfigBase # Conf sécu SSH et envoi de mail
+						logwatchConfig # Envoi de mail quotidiennemment
+						read -p "L'installation des principaux paquets s'est bien déroulée."
 					;;
 
 					2 )		# Installation de Oh-My-Zsh
@@ -749,13 +789,13 @@ do
 
 					3 )
 						shift
-						if [ -f /usr/bin/vim ]; then
+						if [ -f /usr/bin/vim ]; thenlog	
 							echo -e "Vim est déjà installé."
 							read -p "Appuyez sur entrée pour continuer..."
 						else
 							checkPackages "vim"
 							vimConfig
-							read -p "Vim a bien été installé."
+							read -p "L'installation de Vim s'est bien déroulée."
 						fi
 					;;
 
