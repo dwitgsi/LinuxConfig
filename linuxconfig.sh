@@ -653,6 +653,24 @@ function vimConfig {
 		echo "set cursorline" >> $FILE
 		echo "highlight CursorLine guibg=#001000" >> $FILE
 
+		read -p "L'installation de Vim s'est bien déroulée."
+	fi
+}
+
+# Installation du firewall
+function firewallInstall {
+	# Téléchargement du firewall
+	wget https://raw.githubusercontent.com/dwitgsi/LinuxConfig/master/firewall.sh
+	# Déplacement et activation du service firewall.sh
+	if [ -f firewall.sh ]; then
+		chmod u+x firewall.sh
+		mv firewall.sh /etc/init.d/
+		update-rc.d firewall.sh defaults 20
+		echo "L'installation du firewall s'est bien déroulée."
+		echo "Pour modifier les règles, editez le fichier /etc/init.d/firewall.sh"
+		read -p "Activez le firewall en exécutant le service \"service firewall.sh start\""
+	else
+		read -p "ATTENTION : Le script firewall.sh n'est pas présent."
 	fi
 }
 
@@ -752,6 +770,7 @@ do
 				writeLinerInterface "1" "Installation des paquets principaux"
 				writeLinerInterface "2" "Instalaltion de Oh-My-Zsh"
 				writeLinerInterface "3" "Installation de Vim"
+				writeLinerInterface "4" "Installation du firewall"
 				echo -e "${neutre}==============================================================================================="
 				read -p "Votre choix : " choix_PI
 
@@ -789,13 +808,20 @@ do
 
 					3 )
 						shift
-						if [ -f /usr/bin/vim ]; thenlog	
-							echo -e "Vim est déjà installé."
-							read -p "Appuyez sur entrée pour continuer..."
+						if [ -f /usr/bin/vim ]; then
+							read -p "Vim est déjà installé."
 						else
 							checkPackages "vim"
 							vimConfig
-							read -p "L'installation de Vim s'est bien déroulée."
+						fi
+					;;
+
+					4)
+						shift
+						if [ -f /etc/init.d/firewall.sh ]; then
+							read -p "Le firewall est déjà installé."
+						else
+							firewallInstall
 						fi
 					;;
 
