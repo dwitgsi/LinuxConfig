@@ -557,7 +557,7 @@ function fail2banConfigBase {
 
 		# Envoi de mail
 		sed -i 's/destemail = root@localhost/destemail = '$MAIL'/g' /etc/fail2ban/jail.conf
-		sed -i 's/sender = fail2ban@localhost/sender = fail2ban@'$(hostname)'/g'
+		sed -i 's/sender = fail2ban@localhost/sender = fail2ban@'$(hostname)'/g' /etc/fail2ban/jail.conf
 		sed -i 's/action = %(action_)s/action = %(action_mw)s/g' /etc/fail2ban/jail.conf
 		# Sécurisation du SSH
 		LINENUMBER=$(grep -n 'ssh-ddos' /etc/fail2ban/jail.conf | awk -F':' '{ print $1 }')
@@ -666,9 +666,9 @@ function firewallInstall {
 		chmod u+x firewall.sh
 		mv firewall.sh /etc/init.d/
 		update-rc.d firewall.sh defaults 20
+		systemctl start firewall.service
 		echo "L'installation du firewall s'est bien déroulée."
-		echo "Pour modifier les règles, editez le fichier /etc/init.d/firewall.sh"
-		read -p "Activez le firewall en exécutant le service \"service firewall.sh start\""
+		read -p "Pour modifier les règles, editez le fichier /etc/init.d/firewall.sh"
 	else
 		read -p "ATTENTION : Le script firewall.sh n'est pas présent."
 	fi
@@ -767,7 +767,7 @@ do
 				echo -e "---------Paramétrage Post-Installation de la machine---------"
 				echo
 				writeLinerInterface "0" "Menu principal"
-				writeLinerInterface "1" "Installation des paquets principaux"
+				writeLinerInterface "1" "Installation des paquets principaux" "" "" "cron-apt, fail2ban, logwatch, postfix"
 				writeLinerInterface "2" "Instalaltion de Oh-My-Zsh"
 				writeLinerInterface "3" "Installation de Vim"
 				writeLinerInterface "4" "Installation du firewall"
@@ -784,7 +784,11 @@ do
 
 					1 )
 						shift
-						checkPackages "cron-apt fail2ban logwatch lsb-release"
+						checkPackages "cron-apt fail2ban logwatch"
+						# Installation de postfix pour permettre l'envoi de mail (sans checkPackages pour avoir l'écran de configuration)
+						apt-get install -y postfix
+						echo
+						echo -n "--------------------------------------------"
 						echo -n "Adresse mail pour les rapports de securite: "
 						read MAIL
 						cronaptConfig #Configuration de l'installation auto des MAJ de sécu
@@ -847,12 +851,27 @@ do
 								1)
 									shift
 									sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
+									service ssh restart
 									read -p "OK"
 								;;
 								2)
 									shift
-									read -p "Quel est le port à utiliser pour SSH ? : " ssh_port
-									sed -i 's/Port [0-9]*/Port '$ssh_port'/g' /etc/ssh/sshd_config
+									read -p "Quel est le port à utiliser pour SSH ? : " sshPort
+
+									# Modification de la conf SSH
+									sshPortOld=$(grep 'Port [0-9]*' /etc/ssh/sshd_config | cut -c 6-)
+									sed -i 's/Port '$sshPortOld'/Port '$sshPort'/g' /etc/ssh/sshd_config
+
+									# Ajout du port dans le firewall
+									if [ -f /etc/init.d/firewall.sh ]; then
+										lineSSHFirewall=$(grep -n '^TCP_SERVICES=' /etc/init.d/firewall.sh | awk -F':' '{ print $1 }')
+										sed -i $lineSSHFirewall' s/'$sshPortOld'/'$sshPort'/' /etc/init.d/firewall.sh
+										sed -i 's/SSH_PORT="'$sshPortOld'"/SSH_PORT="'$sshPort'"/' /etc/init.d/firewall.sh
+										systemctl daemon-reload
+										systemctl restart firewall.service
+									fi
+
+									service ssh restart
 									read -p "OK"
 								;;
 							esac
