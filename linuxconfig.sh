@@ -771,6 +771,7 @@ do
 				writeLinerInterface "2" "Instalaltion de Oh-My-Zsh"
 				writeLinerInterface "3" "Installation de Vim"
 				writeLinerInterface "4" "Installation du firewall"
+				writeLinerInterface "5" "Configuration de SSH"
 				echo -e "${neutre}==============================================================================================="
 				read -p "Votre choix : " choix_PI
 
@@ -823,6 +824,39 @@ do
 						else
 							firewallInstall
 						fi
+					;;
+
+					5)
+						shift
+						while [[ true ]]; do
+							clear
+							entete
+							echo -e "---------Configuration de SSH---------"
+							echo
+							writeLinerInterface "0" "Menu précédent"
+							writeLinerInterface "1" "Ne pas autoriser la connexion à root"
+							writeLinerInterface "2" "Choisir le port"
+							echo -e "${neutre}==============================================================================================="
+							read -p "Votre choix : " choix_SSH
+
+							case $choix_SSH in
+								0 )
+									shift
+									break
+								;;
+								1)
+									shift
+									sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
+									read -p "OK"
+								;;
+								2)
+									shift
+									read -p "Quel est le port à utiliser pour SSH ? : " ssh_port
+									sed -i 's/Port [0-9]*/Port '$ssh_port'/g' /etc/ssh/sshd_config
+									read -p "OK"
+								;;
+							esac
+						done
 					;;
 
 				esac
